@@ -1,0 +1,45 @@
+---
+title: "Data Cleaning"
+author: "Adejumo  Ridwan Suleiman"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(haven)
+```
+
+```{r}
+
+women <- read_sav("datasets/wm.sav") |> 
+  arrange(HH1, HH2) |> 
+  mutate(across(FN3A:FN4NR, 
+                ~case_when(
+                  . == "?" ~ 0,
+                  . == "" ~ 0,
+                  is.na(.) ~ as.numeric(NA),
+                  TRUE ~ 1
+                ) |> as.numeric()
+  ))
+    
+household <- read_sav("datasets/hh.sav") |> 
+  select(HH1, HH2, starts_with(c("ST","HC"))) |> 
+  arrange(HH1, HH2)
+  
+
+skimr::skim(women)
+skimr::skim(household)
+
+```
+
+```{r}
+mics <- left_join(women, household, by = c("HH1","HH2"))
+```
+
+
+```{r}
+mics |> 
+  select(starts_with("FN")) |>
+  View()
+```
+

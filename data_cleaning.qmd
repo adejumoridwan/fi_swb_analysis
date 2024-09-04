@@ -7,6 +7,9 @@ format: html
 ```{r}
 library(tidyverse)
 library(haven)
+library(psych)
+library(mice)
+library(FactoMineR)
 ```
 
 ```{r}
@@ -20,15 +23,16 @@ women <- read_sav("datasets/wm.sav") |>
                   is.na(.) ~ as.numeric(NA),
                   TRUE ~ 1
                 ) |> as.numeric()
-  ))
+  )) |> 
+  select(-c(FN3NR,FN4NR))
     
 household <- read_sav("datasets/hh.sav") |> 
   select(HH1, HH2, starts_with(c("ST","HC"))) |> 
   arrange(HH1, HH2)
   
 
-skimr::skim(women)
-skimr::skim(household)
+#skimr::skim(women)
+#skimr::skim(household)
 
 ```
 
@@ -36,10 +40,209 @@ skimr::skim(household)
 mics <- left_join(women, household, by = c("HH1","HH2"))
 ```
 
+## Financial Inclusion
 
 ```{r}
-mics |> 
-  select(starts_with("FN")) |>
-  View()
+selected_data <- mics |> 
+  select(FN1A:FN5)
+
+skimr::skim(selected_data)
+```
+
+```{r}
+# Create a scree plot to determine the number of factors
+scree_result <- fa.parallel(selected_data, fa = "fa", n.iter = 100)
+
+# Print suggested number of factors
+print(scree_result$nfact)
+
+```
+
+
+
+
+```{r}
+# Extract the factor scores
+factor_scores <- as.data.frame(fa_result$scores)
+
+# Name the columns appropriately, e.g., Factor1, Factor2, etc.
+colnames(factor_scores) <- paste0("Factor", 1:ncol(factor_scores))
+
+```
+
+```{r}
+# Add an ID column to the original data to maintain order (if not already present)
+data <- data %>% mutate(id = row_number())
+
+# Combine the original data with the factor scores using the ID column
+data_with_factors <- data %>%
+  bind_cols(factor_scores)
+
+```
+
+
+```{r}
+library(psych)
+
+# Function to perform factor analysis and return factor scores and fa_result
+get_factor_scores <- function(data, nfactors = 3, rotate = "varimax", factor_names = NULL) {
+  # Perform factor analysis
+  fa_result <- fa(data, nfactors = nfactors, rotate = rotate, scores = "regression")
+  
+  # Extract factor scores
+  factor_scores <- as.data.frame(fa_result$scores)
+  
+  # Set column names for the factor scores
+  if (!is.null(factor_names)) {
+    if (length(factor_names) != nfactors) {
+      stop("Length of factor_names must match the number of factors.")
+    }
+    colnames(factor_scores) <- factor_names
+  } else {
+    colnames(factor_scores) <- paste0("Factor", 1:ncol(factor_scores))
+  }
+  
+  # Return a list containing both factor scores and fa_result
+  return(list(factor_scores = factor_scores, fa_result = fa_result))
+}
+
+# Function to get variables associated with each factor
+get_variables_per_factor <- function(fa_result, cutoff = 0.3) {
+  # Load required packages
+  library(dplyr)
+  
+  # Extract loadings
+  loadings <- fa_result$loadings
+  
+  # Create a list to store variables associated with each factor
+  variables_per_factor <- list()
+  
+  for (i in 1:ncol(loadings)) {
+    # Get variables with loadings above the cutoff
+    variables <- names(loadings[, i])[abs(loadings[, i]) > cutoff]
+    variables_per_factor[[paste0("Factor", i)]] <- variables
+  }
+  
+  return(variables_per_factor)
+}
+
+
+```
+
+```{r}
+a = get_factor_scores(selected_data, 2, "varimax", factor_names = c("FI1", "FI2"))
+a
+```
+
+```{r}
+get_variables_per_factor(a$fa_result, 0.5)
+```
+
+## 
+
+
+```{r}
+selected_data <- mics |> 
+  select(ST2$1:ST4N$4)
+
+skimr::skim(selected_data)
+```
+
+```{r}
+# Create a scree plot to determine the number of factors
+scree_result <- fa.parallel(selected_data, fa = "fa", n.iter = 100)
+
+# Print suggested number of factors
+print(scree_result$nfact)
+
+```
+
+```{r}
+# Save the final dataset to a CSV file
+write.csv(data_with_factors, "data_with_factors.csv", row.names = FALSE)
+
+```
+
+
+```{r}
+library(psych)
+library(survey)
+
+# Function to perform factor analysis and return factor scores and fa_result
+get_factor_scores <- function(data, weights, nfactors = 3, rotate = "varimax", factor_names = NULL) {
+  # Create survey design object
+  survey_design <- svydesign(ids = ~1, data = data, weights = ~weights)
+  
+  # Calculate weighted means for factor analysis
+  weighted_data <- as.data.frame(svymean(~., design = survey_design))
+  
+  # Perform factor analysis
+  fa_result <- fa(weighted_data, nfactors = nfactors, rotate = rotate, scores = "regression")
+  
+  # Extract factor scores
+  factor_scores <- as.data.frame(fa_result$scores)
+  
+  # Set column names for the factor scores
+  if (!is.null(factor_names)) {
+    if (length(factor_names) != nfactors) {
+      stop("Length of factor_names must match the number of factors.")
+    }
+    colnames(factor_scores) <- factor_names
+  } else {
+    colnames(factor_scores) <- paste0("Factor", 1:ncol(factor_scores))
+  }
+  
+  # Return a list containing both factor scores and fa_result
+  return(list(factor_scores = factor_scores, fa_result = fa_result))
+}
+
+get_factor_scores(selected_data, mics$)
+```
+
+
+```{r}
+library(FactoMineR)
+
+# Function to get factor scores and MCA result
+get_factor_scores <- function(data, num_factors = 2, factor_names = NULL) {
+  # Perform MCA
+  mca_result <- MCA(data, ncp = num_factors, graph = FALSE)
+  
+  # Extract factor scores
+  factor_scores <- as.data.frame(mca_result$ind$coord)
+  
+  # Rename columns if factor_names are provided
+  if (!is.null(factor_names) && length(factor_names) == num_factors) {
+    colnames(factor_scores) <- factor_names
+  } else {
+    colnames(factor_scores) <- paste0("Factor", 1:num_factors)
+  }
+  
+  # Return both factor scores and MCA result
+  return(list(factor_scores = factor_scores, mca_result = mca_result))
+}
+
+# Function to get variables associated with each factor
+get_variables_per_factor <- function(mca_result, cutoff = 0.3) {
+  # Extract variable coordinates
+  variable_coords <- mca_result$var$coord
+  
+  # Create a list to store variables associated with each factor
+  variables_per_factor <- list()
+  
+  # Get variable contributions for each factor
+  for (i in 1:ncol(variable_coords)) {
+    # Get variables with contributions above the cutoff
+    variables <- rownames(variable_coords)[abs(variable_coords[, i]) > cutoff]
+    variables_per_factor[[paste0("Factor", i)]] <- variables
+  }
+  
+  return(variables_per_factor)
+}
+
+
+a = get_factor_scores(selected_data, 2, c("d","d"))
+get_variables_per_factor(a$mca_result, 0.5)
+
 ```
 

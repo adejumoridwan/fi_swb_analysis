@@ -31,5 +31,49 @@ skimr::skim(mics)
 ```{r}
 head(mics)
 ```
+```{r}
 
+# Load necessary library
+library(FactoMineR)
+
+apply_mca <- function(data, n_components = 2, score_names = NULL) {
+  # Apply MCA
+  mca_result <- MCA(data, graph = FALSE)
+  
+  # Get the component scores
+  scores <- mca_result$ind$coord[, 1:n_components]
+  
+  # Rename the columns if names are provided
+  if (!is.null(score_names)) {
+    if (length(score_names) != n_components) {
+      stop("Length of score_names must match the number of components.")
+    }
+    colnames(scores) <- score_names
+  } else {
+    colnames(scores) <- paste0("Component_", 1:n_components)
+  }
+  
+  data = as_tibble((list(mca_result = mca_result, scores = scores))$scores)
+  return(data)
+}
+
+
+```
+
+
+
+```{r}
+
+subset = mics |> 
+  select(FN1A:FN5)
+
+# Apply MCA
+mca_results <- apply_mca(subset, n_components = 2, score_names = c("Comp1", "Comp2"))
+
+
+
+mca_results$scores
+
+
+```
 

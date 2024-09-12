@@ -11,6 +11,7 @@ library(psych)
 library(mice)
 library(FactoMineR)
 library(mice)
+library(factoextra)
 ```
 
 ```{r}
@@ -72,8 +73,14 @@ mca_results <- apply_mca(subset, n_components = 2, score_names = c("Comp1", "Com
 
 
 
-mca_results$scores
+mca_results
 
 
+```
+
+```{r}
+# Assuming your data is in a data frame called 'my_data'
+mca_result <- MCA(subset, graph = FALSE)
+fviz_screeplot(mca_result)
 ```
 

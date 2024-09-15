@@ -20,7 +20,7 @@ skimr::skim(mics)
 ```
 
 ```{r}
-columns_to_exclude = c("HH1", "HH2", "wmweight", "PSU", "stratum")
+columns_to_exclude = c("HH1", "HH2", "wmweight", "PSU", "stratum", "HHAGE")
 
 mics <- mics %>%
   mutate(across(-all_of(columns_to_exclude), as.ordered))
@@ -29,58 +29,108 @@ mics <- mics %>%
 ```{r}
 skimr::skim(mics)
 ```
-```{r}
-head(mics)
-```
-```{r}
 
-# Load necessary library
+
+```{r}
+# Load necessary libraries
 library(FactoMineR)
+library(tibble)
 
-apply_mca <- function(data, n_components = 2, score_names = NULL) {
-  # Apply MCA
-  mca_result <- MCA(data, graph = FALSE)
+# Define the function
+perform_mca <- function(data, n_comp = 1, comp_name = "Component") {
+  # Perform MCA
+  mca_result <- MCA(data, ncp = n_comp, graph = FALSE)
   
-  # Get the component scores
-  scores <- mca_result$ind$coord[, 1:n_components]
+  # Extract the component scores for individuals
+  component_scores <- mca_result$ind$coord[, n_comp]
   
-  # Rename the columns if names are provided
-  if (!is.null(score_names)) {
-    if (length(score_names) != n_components) {
-      stop("Length of score_names must match the number of components.")
-    }
-    colnames(scores) <- score_names
-  } else {
-    colnames(scores) <- paste0("Component_", 1:n_components)
-  }
+  # Convert to tibble with specified column name and return
+  component_tibble <- tibble(!!comp_name := component_scores)
   
-  data = as_tibble((list(mca_result = mca_result, scores = scores))$scores)
-  return(data)
+  return(component_tibble)
 }
 
 
 ```
 
 
+## Financial Inclusion awareness
 
 ```{r}
-
 subset = mics |> 
-  select(FN1A:FN5)
+  select(FN1A:FN2)
 
-# Apply MCA
-mca_results <- apply_mca(subset, n_components = 2, score_names = c("Comp1", "Comp2"))
+FIA = perform_mca(subset, 1,"FIA")
+```
+
+## Financial Inclusion usage
+
+```{r}
+subset = mics |> 
+  select(FN2:FN5)
+
+FIU = perform_mca(subset, 1,"FIU")
+```
+
+## Usage of Electronic and Print Information
+
+```{r}
+subset = mics |> 
+  select(MT1, MT2, MT3, MT4, MT5, MT9, MT10, MT11, MT12)
+
+WEU = perform_mca(subset, 1,"WEU")
+```
+
+## Feelings of Safety
+```{r}
+subset = mics |> 
+  select(VT20, VT21, VT22A, VT22B, VT22C, VT22D, VT22E, VT22F, VT22X)
+
+WFS = perform_mca(subset, 1,"WFS")
+```
+
+## Feelings of Abuse
+
+```{r}
+subset = mics |> 
+  select(DV1A, DV1B, DV1C, DV1D, DV1F)
+
+WFA = perform_mca(subset, 1,"WFA")
+```
+
+## Household Ownership of print and electronic information 
+
+```{r}
+subset = mics |> 
+  select(HC7A, HC7B, HC9A, HC11, HC12, HC13)
+
+HOE = perform_mca(subset, 1,"HOE")
+```
+
+## Awarenesss of Financial Inclusion Programs
+
+```{r}
+subset = mics |> 
+  select(ST2_1, ST2_2, ST2_3, ST2_4)
+
+AFIP = perform_mca(subset, 1,"AFIP")
+```
+
+## Usage of Finacial Inclusion Programs
+```{r}
+subset = mics |> 
+  select(ST2_1, ST2_2, ST2_3, ST2_4)
+
+UFIP = perform_mca(subset, 1,"UFIP")
+```
 
 
-
-mca_results
-
-
+```{r}
+mics <- bind_cols(mics, FIA, FIU, WEU, WFS, WFA, HOE, AFIP, UFIP)
 ```
 
 ```{r}
-# Assuming your data is in a data frame called 'my_data'
-mca_result <- MCA(subset, graph = FALSE)
-fviz_screeplot(mca_result)
+write_dta(mics, "datasets/mics.dta")
 ```
+
 

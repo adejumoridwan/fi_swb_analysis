@@ -1,0 +1,353 @@
+---
+title: "Data Cleaning"
+author: "Adejumo  Ridwan Suleiman"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(psych)
+library(FactoMineR)
+library(factoextra)
+library(haven)
+library(OpenMx)
+library(umx)
+```
+
+```{r}
+
+mics <- read_csv("datasets/mics_imputed.csv")
+```
+
+
+```{r}
+columns_to_exclude = c("HH1", "HH2", "wmweight", "PSU", "stratum", "HHAGE")
+
+mics <- mics %>%
+  mutate(across(-all_of(columns_to_exclude), as.ordered))
+```
+
+```{r}
+skimr::skim(mics)
+```
+
+
+```{r}
+# Load necessary libraries
+library(FactoMineR)
+library(tibble)
+
+# Define the function
+perform_mca <- function(data, n_comp = 1, comp_name = "Component") {
+  # Perform MCA
+  mca_result <- MCA(data, ncp = n_comp, graph = FALSE)
+  
+  # Extract the component scores for individuals
+  component_scores <- mca_result$ind$coord[, n_comp]
+  
+  # Convert to tibble with specified column name and return
+  component_tibble <- tibble(!!comp_name := component_scores)
+  
+  return(component_tibble)
+}
+
+
+```
+
+
+## Financial Inclusion awareness
+
+```{r}
+subset = mics |> 
+  select(FN1A:FN2)
+
+FIA = perform_mca(subset, 1,"FIA")
+```
+
+## Financial Inclusion usage
+
+```{r}
+subset = mics |> 
+  select(FN2:FN5)
+
+FIU = perform_mca(subset, 1,"FIU")
+```
+
+## Usage of Electronic and Print Information
+
+```{r}
+subset = mics |> 
+  select(MT1, MT2, MT3, MT4, MT5, MT9, MT10, MT11, MT12)
+
+WEU = perform_mca(subset, 1,"WEU")
+```
+
+## Feelings of Safety
+```{r}
+subset = mics |> 
+  select(VT20, VT21, VT22A, VT22B, VT22C, VT22D, VT22E, VT22F, VT22X)
+
+WFS = perform_mca(subset, 1,"WFS")
+```
+
+## Feelings of Abuse
+
+```{r}
+subset = mics |> 
+  select(DV1A, DV1B, DV1C, DV1D, DV1F)
+
+WFA = perform_mca(subset, 1,"WFA")
+```
+
+## Household Ownership of print and electronic information 
+
+```{r}
+subset = mics |> 
+  select(HC7A, HC7B, HC9A, HC11, HC12, HC13)
+
+HOE = perform_mca(subset, 1,"HOE")
+```
+
+## Awarenesss of Financial Inclusion Programs
+
+```{r}
+subset = mics |> 
+  select(ST2_1, ST2_2, ST2_3, ST2_4)
+
+AFIP = perform_mca(subset, 1,"AFIP")
+```
+
+## Usage of Finacial Inclusion Programs
+
+```{r}
+subset = mics |> 
+  select(ST2_1, ST2_2, ST2_3, ST2_4)
+
+UFIP = perform_mca(subset, 1,"UFIP")
+```
+
+## Subjective Well Being
+
+```{r}
+subset = mics |> 
+  select(LS1, LS2, LS3, LS4)
+
+SWB = perform_mca(subset, 1,"SWB")
+```
+
+
+```{r}
+mics <- bind_cols(mics, FIA, FIU, WEU, WFS, WFA, HOE, AFIP, UFIP, SWB)
+```
+
+```{r}
+write_dta(mics, "datasets/mics.dta")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+mics_s <- mics |> 
+  select(-c(SWB))
+
+mics_s$LS1 <- mxFactor(mics_s$LS1,levels=levels(mics_s$LS1))
+mics_s$LS2 <- mxFactor(mics_s$LS2,levels=levels(mics_s$LS2))
+mics_s$LS3 <- mxFactor(mics_s$LS3,levels=levels(mics_s$LS3))
+mics_s$ls4 <- mxFactor(mics_s$LS4,levels=levels(mics_s$LS4))
+
+
+myMics <-  mxData(observed=mics_s, type = "raw")
+
+
+#manifests <- c("LS1","LS2","LS3","LS4")
+
+manifests <- c("LS1","LS2","LS3","LS4")
+
+latents <- c("SWB")
+
+causalPaths <- mxPath(from=latents, to=manifests,values=0)
+residualVars <- mxPath(from=manifests, arrows=2)
+factorVars <- mxPath(from=latents,arrows=2,free=TRUE,values=0)
+means <- mxPath(from="one",to=manifests,arrows=1,values=0)
+
+tmp <- mxThreshold(
+  vars = manifests, 
+  nThresh = c(4,10,2,2),
+  values = mxNormalQuantiles(c(4,10,2,2))
+)
+
+factorModel1 <- mxModel(name="One Factor",
+    type="RAM",
+    manifestVars=manifests,
+    latentVars=latents,
+   myMics, residualVars, causalPaths, factorVars, means, tmp)
+
+factorFit1 <- mxTryHardOrdinal(factorModel1)
+
+summary(factorFit1)
+
+
+```
+
+```{r}
+# Install and load the OpenMx package if you haven't already
+# install.packages("OpenMx")
+library(OpenMx)
+
+# Define manifest (observed) and latent variables
+manifestVars <- c("FIU", "FIA", "SWB")  # The observed variables, including SWB
+latentVars <- c("FI")                   # The latent variable
+
+# Create the paths
+factorModel <- mxModel("FactorModel", 
+  type = "RAM",
+  
+  # Define the manifest and latent variables in the model
+  manifestVars = manifestVars,
+  latentVars = latentVars,
+  
+  # Path from the latent variable FI to the observed variables FIU, FIA, and SWB
+  # Fix the loading of FI on FIU to 1 to scale the latent variable FI
+  mxPath(from = "FI", to = "FIU", arrows = 1, free = FALSE, values = 1, label = "lambda_FIU"),
+  
+  # Free factor loadings for FIA and SWB
+  mxPath(from = "FI", to = c("FIA", "SWB"), arrows = 1, free = TRUE, values = c(0.8, 0.5), labels = c("lambda_FIA", "beta_FI_SWB")),
+  
+  # Variance of the latent variable FI (free to estimate)
+  mxPath(from = "FI", arrows = 2, free = TRUE, values = 1, label = "var_FI"),
+  
+  # Residual variances for the observed variables FIU, FIA, and SWB
+  mxPath(from = manifestVars, arrows = 2, free = TRUE, 
+         values = c(0.5, 0.5, 0.5),  # Initial guesses for residual variances
+         labels = c("resid_FIU", "resid_FIA", "resid_SWB")),
+  
+  # Means (intercepts) for the observed variables FIU, FIA, and SWB
+  mxPath(from = "one", to = manifestVars, arrows = 1, free = TRUE, 
+         values = c(0, 0, 0),  # Initial guesses for means
+         labels = c("mean_FIU", "mean_FIA", "mean_SWB")),
+  
+  # Data object (replace 'mics' with your actual dataset)
+  mxData(observed = mics, type = "raw")
+)
+
+# Check model identification before running it
+mxCheckIdentification(factorModel)
+
+# Run the model
+factorFit <- mxRun(factorModel)
+
+# Summary of the model
+summary(factorFit)
+
+```
+
+```{r}
+# Run the model
+factorFit <- mxRun(factorModel)
+
+# Summary of the model
+summaryFit <- summary(factorFit)
+
+# Extract the parameter estimates and standard errors
+paramEstimates <- summaryFit$parameters[, c("name", "Estimate", "Std.Error")]
+
+# Calculate the z-scores (estimate / standard error)
+paramEstimates$z_value <- paramEstimates$Estimate / paramEstimates$Std.Error
+
+# Calculate two-tailed p-values from the z-scores
+paramEstimates$p_value <- 2 * (1 - pnorm(abs(paramEstimates$z_value)))
+
+# Print the parameter estimates, z-scores, and p-values
+print(paramEstimates)
+
+```
+```{r}
+# Load the OpenMx package
+library(OpenMx)
+
+mics$HH2 <- as.integer(mics$HH2)
+
+# Define manifest (observed) and latent variables
+manifestVars <- c("FIU", "FIA", "SWB")  # Observed variables at Level 1
+latentVars <- c("FI_within", "FI_between")  # Latent variable at both Level 1 and Level 2
+
+# Create the paths for the within and between models
+multilevelModel <- mxModel("MultilevelModel",
+  
+  # Level 1: Within-Household model (Individual Level)
+  mxModel("WithinModel",
+    type = "RAM",  # Specify the model type as RAM
+    manifestVars = manifestVars,
+    latentVars = "FI_within",
+    
+    # Paths from latent variable FI_within to observed variables
+    mxPath(from = "FI_within", to = manifestVars, arrows = 1, free = TRUE, 
+           values = c(0.8, 0.8, 0.5), labels = c("lambda_FIU_within", "lambda_FIA_within", "beta_FI_SWB_within")),
+    
+    # Variance of FI_within
+    mxPath(from = "FI_within", arrows = 2, free = TRUE, values = 1, label = "var_FI_within"),
+    
+    # Residual variances for the observed variables FIU, FIA, and SWB
+    mxPath(from = manifestVars, arrows = 2, free = TRUE, values = c(0.5, 0.5, 0.5), 
+           labels = c("resid_FIU_within", "resid_FIA_within", "resid_SWB_within")),
+    
+    # Means (intercepts) for the observed variables FIU, FIA, and SWB
+    mxPath(from = "one", to = manifestVars, arrows = 1, free = TRUE, 
+           values = c(0, 0, 0), labels = c("mean_FIU_within", "mean_FIA_within", "mean_SWB_within")),
+    
+    # Data object for within-level (Level 1)
+    mxData(observed = mics, type = "raw", primaryKey = "HH2")  # Assuming "HH2" is the household identifier
+  ),
+  
+  # Level 2: Between-Household model (Household Level)
+  mxModel("BetweenModel",
+    type = "RAM",  # Specify the model type as RAM
+    manifestVars = "HHAGE",  # Household-level variable
+    latentVars = "FI_between",
+    
+    # Paths from FI_between to FIU, FIA, and SWB at the between level
+    mxPath(from = "FI_between", to = "HHAGE", arrows = 1, free = TRUE, values = 0.5, label = "beta_FI_HHAGE"),
+    
+    # Variance of FI_between
+    mxPath(from = "FI_between", arrows = 2, free = TRUE, values = 1, label = "var_FI_between"),
+    
+    # Between-level intercepts for FI
+    mxPath(from = "one", to = "FI_between", arrows = 1, free = TRUE, values = 0, label = "mean_FI_between"),
+    
+    # Data object for between-level (Level 2)
+    mxData(observed = mics, type = "raw", primaryKey = "HH2")
+  ),
+  
+  # Model fitting for both within and between models
+  mxFitFunctionMultigroup(c("WithinModel", "BetweenModel"))
+)
+
+# Run the multilevel model
+multilevelFit <- mxRun(multilevelModel)
+
+# Summary of the model
+summary(multilevelFit)
+
+```
+

@@ -1,0 +1,193 @@
+---
+title: "Data Cleaning"
+author: "Adejumo  Ridwan Suleiman"
+format: html
+---
+
+```{r}
+library(tidyverse)
+library(psych)
+library(FactoMineR)
+library(factoextra)
+library(haven)
+library(lavaan)
+```
+
+```{r}
+mics <- read_csv("datasets/mics_imputed.csv")
+```
+
+
+```{r}
+columns_to_exclude = c("HH1", "HH2", "wmweight", "PSU", "stratum", "HHAGE","HH48")
+
+mics <- mics %>%
+  mutate(across(-all_of(columns_to_exclude), as.ordered))
+```
+
+```{r}
+#skimr::skim(mics)
+```
+
+
+```{r}
+
+perform_mca <- function(data, n_comp = 1, comp_name = "Component") {
+  # Perform MCA
+  mca_result <- MCA(data, ncp = n_comp, graph = FALSE)
+  
+  # Extract the component scores for individuals
+  component_scores <- mca_result$ind$coord[, n_comp]
+  
+  # Convert to tibble with specified column name and return
+  component_tibble <- tibble(!!comp_name := component_scores)
+  
+  return(component_tibble)
+}
+
+
+```
+
+
+## Financial Inclusion awareness
+
+```{r}
+subset = mics |> 
+  select(FN1A:FN5)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+FI = perform_mca(subset, 1,"FI")
+```
+
+## Financial Inclusion usage
+
+```{r}
+#subset = mics |> 
+  #select(FN2:FN5)
+
+#subset <- subset %>%
+  #mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+
+#FIU = perform_mca(subset, 1,"FIU")
+```
+
+## Usage of Electronic and Print Information
+
+```{r}
+subset = mics |> 
+  select(MT1, MT2, MT3, MT4, MT5, MT9, MT10, MT11, MT12)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+WEU = perform_mca(subset, 1,"WEU")
+```
+
+## Feelings of Safety
+```{r}
+subset = mics |> 
+  select(VT20, VT21, VT22A, VT22B, VT22C, VT22D, VT22E, VT22F, VT22X)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+WFS = perform_mca(subset, 1,"WFS")
+```
+
+## Feelings of Abuse
+
+```{r}
+subset = mics |> 
+  select(DV1A, DV1B, DV1C, DV1D, DV1F)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+WFA = perform_mca(subset, 1,"WFA")
+```
+
+## Household Ownership of print and electronic information 
+
+```{r}
+subset = mics |> 
+  select(HC7A, HC7B, HC9A, HC11, HC12, HC13)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+HOE = perform_mca(subset, 1,"HOE")
+```
+
+## Awarenesss of Financial Inclusion Programs
+
+```{r}
+subset = mics |> 
+  select(ST2_1, ST2_2, ST2_3, ST2_4)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+AFIP = perform_mca(subset, 1,"AFIP")
+```
+
+## Usage of Finacial Inclusion Programs
+
+```{r}
+subset = mics |> 
+  select(ST2_1, ST2_2, ST2_3, ST2_4)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+UFIP = perform_mca(subset, 1,"UFIP")
+```
+
+## Subjective Well Being
+
+```{r}
+subset = mics |> 
+  select(LS1, LS2, LS3, LS4)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+
+SWB = perform_mca(subset, 1,"SWB")
+```
+
+
+```{r}
+mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, AFIP, UFIP,SWB)
+```
+
+```{r}
+write_dta(mics, "datasets/mics.dta")
+```
+
+```{r}
+
+#library(lmerTest)
+
+#model <- lmer(SWB ~  WM14 + HC11 + HC12 + HC13 + HH14 + HC19 + FIU + FIA +  WFA + WEU + welevel + WAGE + (helevel| HH2), data = mics)
+
+#summary(model)
+
+#anova(model)
+
+```
+
+
+```{r}
+library(brms)
+
+fit <- brm(SWB ~ FI + welevel + WEU + WFS + WFA + WAGE + (1|HOE) + (1|AFIP) + (1|UFIP) +(1|zone) + + (1|zone) + (1|HHSEX) + (1|helevel) + (1|insurance), 
+           data = mics, chains = 1, iter =  500)
+```
+
+
+
+
+
+

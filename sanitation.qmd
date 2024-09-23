@@ -1,0 +1,110 @@
+---
+title: "sanitation"
+author: "Adejumo Ridwan Suleiman"
+format: html
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+sanitation <- readxl::read_excel("datasets/sanitation.xlsx")
+```
+
+```{r}
+sanitation |> 
+  filter(!is.na(Facilities_Limited_type) & !is.na(Facilities_Limited_no)) |>
+  group_by(Facilities_Limited_type) |> 
+  summarize(n = sum(Facilities_Limited_no)) |>
+  mutate(total = sum(n),
+         percentage = n / total * 100) |>
+  select(Facilities_Limited_type, n, percentage)
+```
+
+```{r}
+sanitation |> 
+    filter(!is.na(Sanitation_basic_type) & !is.na(Sanitation_Basic_no)) |> 
+  group_by(Sanitation_basic_type) |> 
+  summarize(n = sum(Sanitation_Basic_no))  |>
+  mutate(total = sum(n),
+         percentage = n / total * 100) |>
+  select(Sanitation_basic_type, n, percentage)
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# Data manipulation part
+sanitation_summary <- sanitation |> 
+  pivot_longer(cols=-c(1:9), names_to="reason", values_to="no", values_drop_na=T) |> 
+  group_by(reason) |> 
+  summarize(n = sum(no)) |>
+  mutate(total = sum(n),
+         percentage = n / total * 100) |>
+  select(reason, n, percentage)
+
+# Custom labels for the columns
+custom_labels <- c(
+  "1_Health_Hygiene" = "Health Hygiene",
+  "2_Environment_Natural_resources" = "Environment Natural Resources",
+  "3_Finance_economics" = "Fiannce Economics",
+  "4_stream_river_basin_neglect" = "Stream and River Basin Neglect",
+  "5_technology_operation" = "Technology and Operation"
+  # Add more key-value pairs to map the old labels to the new ones
+)
+
+# Plotting part
+ggplot(sanitation_summary, aes(x = reorder(reason, percentage), y = percentage)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = sprintf("%d (%.1f%%)", n, percentage)), 
+            hjust = 0.5, size = 3.5) +  # Add count and percentage labels outside the bars
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_x_discrete(labels = custom_labels) +  # Custom column labels
+  labs(x = "", y = "", title = "Sanitation Facilities Lost To") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10)) +  # Customize y-axis labels if needed
+  coord_flip()  # Flip the coordinates for horizontal bars
+
+
+```
+
+```{r}
+sanitation |> 
+  filter(Sanitation_Basic_no == 0 & Facilities_Limited_no == 0) |> 
+  count()
+```
+```{r}
+open_defecation <- sanitation |> 
+  filter(Sanitation_Basic_no == 0 & Facilities_Limited_no == 0) |>  pivot_longer(cols=-c(1:9), names_to="reason", values_to="no", values_drop_na=T) |> 
+  group_by(reason) |> 
+  summarize(n = sum(no)) |>
+  mutate(total = sum(n),
+         percentage = n / total * 100) |>
+  select(reason, n, percentage)
+
+# Custom labels for the columns
+custom_labels <- c(
+  "1_Health_Hygiene" = "Health Hygiene",
+  "2_Environment_Natural_resources" = "Environment Natural Resources",
+  "3_Finance_economics" = "Fiannce Economics",
+  "4_stream_river_basin_neglect" = "Stream and River Basin Neglect",
+  "5_technology_operation" = "Technology and Operation"
+  # Add more key-value pairs to map the old labels to the new ones
+)
+
+# Plotting part
+ggplot(open_defecation, aes(x = reorder(reason, percentage), y = percentage)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = sprintf("%d (%.1f%%)", n, percentage)), 
+            hjust = 0.5, size = 3.5) +  # Add count and percentage labels outside the bars
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_x_discrete(labels = custom_labels) +  # Custom column labels
+  labs(x = "", y = "", title = "Those practicing open defecation") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10)) +  # Customize y-axis labels if needed
+  coord_flip()  # Flip the coordinates for horizontal bars
+```
+

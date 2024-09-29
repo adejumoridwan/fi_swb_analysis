@@ -108,3 +108,125 @@ ggplot(open_defecation, aes(x = reorder(reason, percentage), y = percentage)) +
   coord_flip()  # Flip the coordinates for horizontal bars
 ```
 
+```{r}
+# Create vectors
+reason <- c("RG", "LAR", "FG", "PTW","LLI")
+n <- c(414, 9, 20,9,9)
+perc <- c(90, 2, 4, 2, 2)
+
+# Create a tibble dataframe
+df <- tibble(
+reason,
+n
+) |> 
+    mutate(percentage = round(freq/sum(freq) * 100))
+
+# View the tibble
+df
+
+```
+
+## Obstacles
+```{r}
+# Custom labels for the columns
+custom_labels <- c(
+  "RG" = "Rocky ground",
+  "LAR" = "Lack of access road \n for motorized equipment",
+  "FG" = "Flooded ground",
+  "PTW" = "Pollution threats to wateworks",
+  "LLI" = "Low level income"
+  # Add more key-value pairs to map the old labels to the new ones
+)
+
+# Plotting part
+ggplot(df, aes(x = reorder(reason, percentage), y = percentage)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = sprintf("%d (%.1f%%)", n, percentage)), 
+            hjust = 0.5, size = 3.5) +  # Add count and percentage labels outside the bars
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_x_discrete(labels = custom_labels) +  # Custom column labels
+  labs(y = "Frequency(%)", x = "", title = "Obstacles") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10)) +  # Customize y-axis labels if needed
+  coord_flip()  # Flip the coordinates for horizontal bars
+```
+
+## Contours distribution
+```{r}
+contour <- tibble(contour = c(305, 300, 305, 310, 315, 320, 325, 330, 335, 340))
+```
+
+```{r}
+ggplot(contour, aes(x = contour)) +
+  geom_histogram(aes(y = after_stat(density)), binwidth = 5, color = "black", fill = "lightblue") +  # Histogram with no gaps
+  geom_density(color = "red", size = 1) +  # Density curve
+  geom_vline(aes(xintercept = mean(contour)), color = "blue", linetype = "dashed", size = 1) +  # Mean line
+  geom_text(aes(x = mean(contour), y = 0, label = paste("Mean:", round(mean(contour), 2))),
+            hjust = -0.1, vjust = -0.5, color = "blue") +  # Mean label
+  labs(title = "Contour distribution", x = "Contour Value", y = "Density")
+```
+
+## Sanitation Distribution
+```{r}
+# Create vectors
+reason <- c("Basic", "Limited", "Communal", "Open Defecation")
+n <- c(23, 22, 0, 416)
+perc <- c(90, 2, 4, 2, 2)
+
+# Create a tibble dataframe
+df <- tibble(
+reason,
+n
+) |> 
+  mutate(percentage = round(n/sum(n) * 100))
+
+# View the tibble
+df
+
+```
+
+```{r}
+# Custom labels for the columns
+custom_labels <- c(
+  "RG" = "Rocky ground",
+  "LAR" = "Lack of access road \n for motorized equipment",
+  "FG" = "Flooded ground",
+  "PTW" = "Pollution threats to wateworks",
+  "LLI" = "Low level income"
+  # Add more key-value pairs to map the old labels to the new ones
+)
+
+# Plotting part
+ggplot(df, aes(x = reorder(reason, percentage), y = percentage)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = sprintf("%d (%.1f%%)", n, percentage)), 
+            hjust = 0.5, size = 3.5) +  # Add count and percentage labels outside the bars
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  scale_x_discrete(labels = custom_labels) +  # Custom column labels
+  labs(y = "Frequency(%)", x = "", title = "Sanitation Distribution") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10)) 
+```
+
+## Presence of sanitation in the houses on it
+```{r}
+# Create a matrix for the contingency table
+contingency_table <- matrix(c(10, 0, 0, 0), nrow = 2, byrow = TRUE)
+
+# Assign row and column names
+rownames(contingency_table) <- c("BS","LM")
+colnames(contingency_table) <- c(">= 300", "< 300")
+
+# Print the contingency table
+print(contingency_table)
+
+```
+```{r}
+# Perform Fisher's Exact Test
+fisher_result <- fisher.test(contingency_table)
+
+# Print the results
+print(fisher_result)
+
+```
+

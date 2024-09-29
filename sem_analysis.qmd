@@ -14,15 +14,19 @@ library(lavaan)
 ```
 
 ```{r}
-mics <- read_csv("datasets/mics_imputed.csv")
+mics <- read_csv("datasets/mics_imputed.csv") |> 
+        mutate(Houshold_ID = as_factor(Household_ID))
 ```
 
 
 ```{r}
-columns_to_exclude = c("HH1", "HH2", "wmweight", "PSU", "stratum", "HHAGE","HH48")
+
+columns_to_exclude <- c("HH1", "HH2", "wmweight", "PSU", "stratum", 
+                        "HHAGE", "HH48","Household_ID")
 
 mics <- mics %>%
   mutate(across(-all_of(columns_to_exclude), as.ordered))
+
 ```
 
 ```{r}
@@ -162,8 +166,13 @@ SWB = perform_mca(subset, 1,"SWB")
 mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, AFIP, UFIP,SWB)
 ```
 
+
 ```{r}
 write_dta(mics, "datasets/mics.dta")
+```
+
+```{r}
+#write_csv(mics, "datasets/mics.csv")
 ```
 
 ```{r}
@@ -179,12 +188,6 @@ write_dta(mics, "datasets/mics.dta")
 ```
 
 
-```{r}
-library(brms)
-
-fit <- brm(SWB ~ FI + welevel + WEU + WFS + WFA + WAGE + (1|HOE) + (1|AFIP) + (1|UFIP) +(1|zone) + + (1|zone) + (1|HHSEX) + (1|helevel) + (1|insurance), 
-           data = mics, chains = 1, iter =  500)
-```
 
 
 

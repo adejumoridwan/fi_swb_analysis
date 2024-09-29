@@ -1,0 +1,64 @@
+---
+title: "Data Cleaning"
+author: "Adejumo Ridwan Suleiman"
+format: html
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+cleaning_dictionary <- read_csv("datasets/cleaning_dictionary.csv")
+
+hh <- read_sav("datasets/hh.sav") |> 
+  arrange(HH1,HH2) |> 
+  select(HH1, HH2, HC1A, 
+         HC7A,HC7B,HC9A,HC11,
+         HC12,HC13,ST2_1:ST3_4,HH48,
+         HHSEX, HHAGE,helevel)
+
+wm <- read_sav("datasets/wm.sav") |>
+  select(HH1,HH2,starts_with(c("FN","LS")),windex5,
+         VT20:VT22X,MT1:MT5,MT9:MT12,zone, HH6, 
+         WAGE, MSTATUS, WB18, welevel, ethnicity,
+         WM14, DV1A, DV1B, DV1C, DV1D, DV1F, 
+         wmweight,PSU,) |> 
+  left_join(hh, by = c("HH1","HH2")) |> 
+  matchmaker::match_df(
+    dictionary = cleaning_dictionary,
+    from = "from",
+    to = "to",
+    by = "col"
+  ) |> 
+  mutate(across(FN3A:FN4NR, 
+                ~case_when(
+                  . == "?" ~ 0,
+                  . == "" ~ 0,
+                  is.na(.) ~ as.numeric(NA),
+                  TRUE ~ 1
+                ) |> as.numeric()
+  )) |> 
+  mutate(across(where(is.character), ~na_if(., ".missing")),
+         across(where(is.numeric), ~ifelse(. == -99999, NA, .))) |> 
+  mutate(
+    HHAGE_CAT = epikit::age_categories(
+      HHAGE,
+      lower = 15,
+      upper = 60,
+      by = 5
+    )
+  )
+  
+  
+```
+
+```{r}
+skimr::skim(wm)
+```
+
+```{r}
+
+```
+

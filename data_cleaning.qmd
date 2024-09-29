@@ -49,16 +49,29 @@ wm <- read_sav("datasets/wm.sav") |>
       upper = 60,
       by = 5
     )
+  ) |> 
+  mutate(
+    HHAGE_CAT = case_when(
+      HHAGE_CAT == "15-19" ~ 1,
+      HHAGE_CAT == "20-24" ~ 2,
+      HHAGE_CAT == "25-29" ~ 3,
+      HHAGE_CAT == "30-34" ~ 4,
+      HHAGE_CAT == "35-39" ~ 5,
+      HHAGE_CAT == "40-44" ~ 6,
+      HHAGE_CAT == "45-49" ~ 7,
+      HHAGE_CAT == "50-54" ~ 8,
+      HHAGE_CAT == "55-59" ~ 9,
+      HHAGE_CAT == "60+" ~ 10,
+      .default = NA
+    )
   )
-  
-  
 ```
 
 ```{r}
-skimr::skim(wm)
+#skimr::skim(wm)
 ```
 
 ```{r}
-
+write_csv(wm,"datasets/wm.csv")
 ```
 

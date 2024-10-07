@@ -25,6 +25,55 @@ mics <- mics |>
   mutate(across(-all_of(columns_to_exclude), as.ordered))
 ```
 
+```{r}
+# Load the necessary libraries
+if (!requireNamespace("FactoMineR", quietly = TRUE)) {
+  install.packages("FactoMineR")
+}
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+
+library(FactoMineR)
+library(ggplot2)
+
+# Function to plot a scree plot for MCA
+scree_plot_mca <- function(data) {
+  # Check if the data frame is valid
+  if (!is.data.frame(data)) {
+    stop("Input must be a data frame")
+  }
+
+  # Perform MCA analysis using FactoMineR
+  mca_result <- MCA(data, graph = FALSE)
+
+  # Extract eigenvalues (inertia)
+  eigenvalues <- mca_result$eig[, 1]
+
+  # Create a data frame for plotting
+  scree_data <- data.frame(
+    Dimension = seq_along(eigenvalues),
+    Eigenvalue = eigenvalues,
+    CumulativeVariance = cumsum(eigenvalues) / sum(eigenvalues) * 100
+  )
+
+  # Plot the scree plot using ggplot2
+  ggplot(scree_data, aes(x = Dimension, y = Eigenvalue)) +
+    geom_point(size = 3) +
+    geom_line(group = 1, color = "blue") +
+    geom_bar(aes(x = Dimension, y = Eigenvalue), stat = "identity", fill = "lightblue", alpha = 0.6) +
+    geom_text(aes(label = round(CumulativeVariance, 1)), vjust = -0.5, color = "red", size = 3) +
+    labs(
+      title = "Scree Plot of MCA",
+      x = "Dimensions",
+      y = "Eigenvalue",
+      subtitle = "Cumulative variance explained (%) shown in red"
+    ) +
+    theme_minimal()
+}
+
+```
+
 
 ```{r}
 
@@ -55,20 +104,20 @@ subset <- subset %>%
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 FI = perform_mca(subset, 1,"FI")
+scree_plot_mca(subset)
 ```
 
 ## Financial Inclusion usage
 
-```{r}
-#subset = mics |> 
-  #select(FN2:FN5)
 
-#subset <- subset %>%
-  #mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
+subset = mics |> 
+  select(FN2:FN1L)
+
+subset <- subset %>%
+  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 
-#FIU = perform_mca(subset, 1,"FIU")
-```
+FI = perform_mca(subset, 1,"FI")
 
 ## Usage of Electronic and Print Information
 
@@ -117,29 +166,28 @@ subset <- subset %>%
 HOE = perform_mca(subset, 1,"HOE")
 ```
 
-## Awarenesss of Financial Inclusion Programs
+## Awarenesss and Usage of Financial Inclusion Programs
 
 ```{r}
 subset = mics |> 
-  select(ST2_1, ST2_2, ST2_3, ST2_4)
+  select(ST2_1, ST2_2, ST2_3, ST2_4, ST2_1, ST2_2, ST2_3, ST2_4)
 
 subset <- subset %>%
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
-AFIP = perform_mca(subset, 1,"AFIP")
+UAFIP = perform_mca(subset, 1,"UAFIP")
 ```
 
 ## Usage of Finacial Inclusion Programs
 
-```{r}
 subset = mics |> 
-  select(ST2_1, ST2_2, ST2_3, ST2_4)
+  select()
 
 subset <- subset %>%
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 UFIP = perform_mca(subset, 1,"UFIP")
-```
+
 
 ## Subjective Well Being
 
@@ -151,14 +199,67 @@ subset <- subset %>%
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 SWB = perform_mca(subset, 1,"SWB")
+scree_plot_mca(subset)
 ```
 
 
 ```{r}
-mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, AFIP, UFIP,SWB)
+mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, UAFIP,SWB)
 ```
 
 
 ```{r}
-write_dta(mics, "datasets/mics.dta")
+#mics <- mics |> 
+  #mutate(SSWB = as.vector(scale(SWB))) |> 
+  #filter(ethnicity %in% c(4,5,6))
 ```
+
+
+```{r}
+#write_dta(mics, "datasets/mics.dta")
+```
+
+
+```{r}
+write_csv(mics, "datasets/mics.csv")
+```
+
+```{r}
+mics |> 
+  ggplot(aes(x=FI)) +
+  geom_density()
+```
+```{r}
+mics |> 
+ggplot(aes(x=SWB)) +
+  geom_density()
+```
+
+## Descriptive Analysis
+
+```{r}
+summarize_group <- function(data, group_col) {
+  data %>%
+    group_by({{ group_col }}) %>%
+    summarize(
+      mean_continuous_var1 = mean(SWB, na.rm = TRUE),
+      sd_continuous_var1 = sd(SWB, na.rm = TRUE),
+      mean_continuous_var2 = mean(FI, na.rm = TRUE),
+      sd_continuous_var2 = sd(FI, na.rm = TRUE)
+    )
+}
+
+```
+
+```{r}
+summarize_group(mics, welevel)
+summarize_group(mics, WAGE)
+summarize_group(mics, WM14)
+summarize_group(mics, WB18)
+summarize_group(mics, WM14)
+summarize_group(mics, MSTATUS)
+summarize_group(mics, WAGE)
+
+
+```
+

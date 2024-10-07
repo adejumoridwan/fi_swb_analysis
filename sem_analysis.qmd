@@ -188,6 +188,29 @@ write_dta(mics, "datasets/mics.dta")
 ```
 
 
+```{r}
+mics <- mics |> 
+  select(-c("FI","SWB"))
+# Structural Equation Modelling
+model_sem <- "
+  # measurement model
+    awareness =~ FN1A + FN1B + FN1C + FN1D + FN1E + FN1F + FN1G + FN1H + FN1I + FN1J + FN1K + FN1L
+    usage =~ FN2 + FN4B + FN4C + FN4D + FN4E
+    FI =~ awareness + usage
+    SWB =~ LS1 + LS3 + LS4
+  # regression
+    FI ~ welevel + HH6
+    SWB ~ FI + welevel + MSTATUS + WAGE
+  # residual correlations
+"
+# sem model
+fit_sem <- sem(model_sem, data = mics, sampling.weights = "wmweight", ordered = T)
+
+
+# summary measures
+summary(fit_sem, standardized = TRUE, ordered = c("MSTATUS","WAGE","welevel")
+        fit.measures = TRUE, cluster = "Household_ID")
+```
 
 
 

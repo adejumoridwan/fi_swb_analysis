@@ -6,6 +6,7 @@ format: html
 
 ```{r}
 library(tidyverse)
+library(haven)
 ```
 
 
@@ -23,7 +24,7 @@ wm <- read_sav("datasets/wm.sav") |>
   select(HH1,HH2,starts_with(c("FN","LS")),windex5,
          VT20:VT22X,MT1:MT5,MT9:MT12,zone, HH6, 
          WAGE, MSTATUS, WB18, welevel, ethnicity,
-         WM14, DV1A, DV1B, DV1C, DV1D, DV1F, 
+         WM14, DV1A, DV1B, DV1C, DV1D, DV1F, stratum,
          wmweight,PSU,) |> 
   left_join(hh, by = c("HH1","HH2")) |> 
   matchmaker::match_df(

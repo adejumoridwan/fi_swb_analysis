@@ -213,11 +213,11 @@ mics <- mics |>
     mutate(
     SWB_CAT = factor(ntile(SWB, 3),
                      levels = c(1, 2, 3),
-                     labels = c("Low", "Medium", "High"),
+                     labels = c(1, 2, 3),
                      ordered = TRUE),
     FIN_CAT = factor(ntile(FI, 3),
                      levels = c(1, 2, 3),
-                     labels = c("Low", "Medium", "High"),
+                     labels = c(1, 2, 3),
                      ordered = TRUE),
   )
          
@@ -240,42 +240,43 @@ write_dta(mics, "datasets/mics.dta")
 write_csv(mics, "datasets/mics.csv")
 ```
 
-```{r}
-mics |> 
-  ggplot(aes(x=FI)) +
-  geom_density()
-```
-```{r}
-mics |> 
-ggplot(aes(x=SWB)) +
-  geom_density()
-```
-
-## Descriptive Analysis
 
 ```{r}
-summarize_group <- function(data, group_col) {
-  data %>%
-    group_by({{ group_col }}) %>%
-    summarize(
-      mean_continuous_var1 = mean(SWB, na.rm = TRUE),
-      sd_continuous_var1 = sd(SWB, na.rm = TRUE),
-      mean_continuous_var2 = mean(FI, na.rm = TRUE),
-      sd_continuous_var2 = sd(FI, na.rm = TRUE)
-    )
-}
-
+women <- tbl_summary(
+    mics,
+    include = c(FIN_CAT, WAGE, welevel, MSTATUS, WB18, WM14, zone, HH6),
+    by = SWB_CAT, # split table by group
+    missing = "no" # don't list missing data separately
+  ) |> 
+  add_n() |> # add column with total number of non-missing observations
+  add_p(all_categorical() ~ "chisq.test") |> 
+  modify_header(label = "") |> # update the column header
+  bold_labels() |> 
+  modify_spanning_header(all_stat_cols() ~ "**Subjective Well Being**") |> 
+  modify_header(all_stat_cols() ~ "**{level}**  \nN = {n} ({style_percent(p)}%)")
+  
 ```
 
 ```{r}
-summarize_group(mics, welevel)
-summarize_group(mics, WAGE)
-summarize_group(mics, WM14)
-summarize_group(mics, WB18)
-summarize_group(mics, WM14)
-summarize_group(mics, MSTATUS)
-summarize_group(mics, WAGE)
+household <- tbl_summary(
+    mics,
+    include = c(ethnicity, zone, HH6, HHSEX, HHAGE_CAT, helevel, windex5),
+  ) |> 
+  add_n() |> # add column with total number of non-missing observations
+  modify_header(label = "") |> # update the column header
+  bold_labels()
+```
 
-
+```{r}
+pca_components <- household <- tbl_summary(
+    mics,
+    include = c(WEU, WFA, WFS, HOE, UAFIP),
+    by=SWB_CAT
+  ) |> 
+  add_n() |> # add column with total number of non-missing observations
+  modify_header(label = "") |> # update the column header
+  bold_labels() |> 
+  add_p(
+    test = list(all_continuous() ~ "oneway.test"))
 ```
 

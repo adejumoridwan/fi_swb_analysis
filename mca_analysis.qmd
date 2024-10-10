@@ -6,6 +6,7 @@ format: html
 
 ```{r}
 library(tidyverse)
+library(haven)
 library(FactoMineR)
 library(factoextra)
 ```
@@ -207,6 +208,21 @@ scree_plot_mca(subset)
 mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, UAFIP,SWB)
 ```
 
+```{r}
+mics <- mics |> 
+    mutate(
+    SWB_CAT = factor(ntile(SWB, 3),
+                     levels = c(1, 2, 3),
+                     labels = c("Low", "Medium", "High"),
+                     ordered = TRUE),
+    FIN_CAT = factor(ntile(FI, 3),
+                     levels = c(1, 2, 3),
+                     labels = c("Low", "Medium", "High"),
+                     ordered = TRUE),
+  )
+         
+```
+
 
 ```{r}
 #mics <- mics |> 
@@ -216,7 +232,7 @@ mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, UAFIP,SWB)
 
 
 ```{r}
-#write_dta(mics, "datasets/mics.dta")
+write_dta(mics, "datasets/mics.dta")
 ```
 
 

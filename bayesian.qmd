@@ -1,0 +1,69 @@
+```{r}
+library(brms)
+library(haven)
+library(tidyverse)
+library(performance)
+```
+
+```{r}
+mics <- read_csv("datasets/mics.csv") |> 
+        mutate(Houshold_ID = as_factor(household_id), 
+               MSTATUS = as_factor(MSTATUS), 
+               ethnicity = as_factor(ethnicity),
+               HC1A = as_factor(HC1A),
+               zone = as_factor(zone),
+              household_id = as.factor(household_id),
+              WM14 = as.factor(WM14))
+```
+
+```{r}
+
+columns_to_exclude <- c("HH1", "HH2", "wmweight", "PSU", "stratum", 
+                        "HHAGE", "HH48", "FI", "WEU", "WFS", "WFA", 
+                        "HOE", "UAFIP", "SWB","household_id",
+                       "MSTATUS","ethnicity","HC1A","zone", "WM14")
+
+mics <- mics %>%
+  mutate(across(-all_of(columns_to_exclude), as.ordered))
+
+```
+
+```{r}
+
+# Define the model formula
+
+# Define the model formula
+formula <- bf(
+  SWB_CAT ~ FIN_CAT + welevel + WEU + WFS + WFA + WM14 + UAFIP +
+        WAGE + MSTATUS + WB18 + ethnicity + HOE +
+        HHSEX + HHAGE_CAT + helevel + windex5 + (1 | household_id)
+)
+
+# Fit the model
+fit <- brm(
+  formula = formula,
+  data = mics,
+  family = cumulative(),
+  chains = 4,
+  iter = 1500,
+  warmup = 1000,
+  cores = parallel::detectCores(),
+  control = list(adapt_delta = 0.95),
+  save_model = "mics.txt"
+)
+```
+
+```{r}
+saveRDS(fit, "fit.RDS")
+```
+
+```{r}
+# Summary of the model
+summary(fit)
+
+# Diagnostics and visualization
+plot(fit)
+pp_check(fit)
+variance_decomposition(fit)
+```
+

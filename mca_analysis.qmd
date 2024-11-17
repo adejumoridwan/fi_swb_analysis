@@ -9,6 +9,7 @@ library(tidyverse)
 library(haven)
 library(FactoMineR)
 library(factoextra)
+library(gtsummary)
 ```
 
 ```{r}
@@ -23,6 +24,11 @@ columns_to_exclude <- c("HH1", "HH2", "wmweight", "PSU", "stratum",
                         "HHAGE", "HH48","household_id")
 
 mics <- mics |> 
+  mutate(
+    windex5 = ifelse(windex5 == 0,5, windex5),
+    WAGE = ifelse(WAGE == 0,1, WAGE),
+    helevel = ifelse(helevel == 5,4, helevel)
+  ) |> 
   mutate(across(-all_of(columns_to_exclude), as.ordered))
 ```
 
@@ -105,6 +111,7 @@ subset <- subset %>%
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 FI = perform_mca(subset, 1,"FI")
+
 scree_plot_mca(subset)
 ```
 
@@ -208,20 +215,33 @@ scree_plot_mca(subset)
 mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, UAFIP,SWB)
 ```
 
+
+
 ```{r}
 mics <- mics |> 
     mutate(
-    SWB_CAT = factor(ntile(SWB, 3),
-                     levels = c(1, 2, 3),
-                     labels = c(1, 2, 3),
-                     ordered = TRUE),
-    FIN_CAT = factor(ntile(FI, 3),
-                     levels = c(1, 2, 3),
-                     labels = c(1, 2, 3),
-                     ordered = TRUE),
-  )
+        SWB_CAT = as.integer(factor(ntile(SWB, 100))),
+        FIN_CAT = as.integer(factor(ntile(FI, 100))),
+    ) |> 
+    mutate(
+        SWB_CAT = case_when(
+            SWB_CAT < 40 ~ 1,
+            SWB_CAT >= 40 & SWB_CAT <= 60 ~ 2,
+            SWB_CAT > 60 ~ 3
+        ),
+        SWB_CAT = factor(SWB_CAT, levels = c(1, 2, 3), ordered = TRUE), # Convert to ordered factor
+        FIN_CAT = case_when(
+            FIN_CAT < 40 ~ 1,
+            FIN_CAT >= 40 & FIN_CAT <= 60 ~ 2,
+            FIN_CAT > 60 ~ 3
+        ),
+        FIN_CAT = factor(FIN_CAT, levels = c(1, 2, 3), ordered = TRUE) # Convert to ordered factor
+    )
+
+
          
 ```
+
 
 
 ```{r}
@@ -250,7 +270,6 @@ women <- tbl_summary(
   ) |> 
   add_n() |> # add column with total number of non-missing observations
   add_p(all_categorical() ~ "chisq.test") |> 
-  modify_header(label = "") |> # update the column header
   bold_labels() |> 
   modify_spanning_header(all_stat_cols() ~ "**Subjective Well Being**") |> 
   modify_header(all_stat_cols() ~ "**{level}**  \nN = {n} ({style_percent(p)}%)")
@@ -261,14 +280,18 @@ women <- tbl_summary(
 household <- tbl_summary(
     mics,
     include = c(ethnicity, zone, HH6, HHSEX, HHAGE_CAT, helevel, windex5),
+    by = SWB_CAT
   ) |> 
   add_n() |> # add column with total number of non-missing observations
-  modify_header(label = "") |> # update the column header
-  bold_labels()
+  bold_labels() |> 
+  add_p(all_categorical() ~ "kruskal.test") |> 
+  modify_spanning_header(all_stat_cols() ~ "**Subjective Well Being**") |> 
+  modify_header(all_stat_cols() ~ "**{level}**  \nN = {n} ({style_percent(p)}%)")
+  
 ```
 
 ```{r}
-pca_components <- household <- tbl_summary(
+pca_components <- tbl_summary(
     mics,
     include = c(WEU, WFA, WFS, HOE, UAFIP),
     by=SWB_CAT
@@ -277,6 +300,50 @@ pca_components <- household <- tbl_summary(
   modify_header(label = "") |> # update the column header
   bold_labels() |> 
   add_p(
-    test = list(all_continuous() ~ "oneway.test"))
+  test = list(all_continuous() ~ "oneway.test")) |> 
+  bold_labels() |> 
+  modify_spanning_header(all_stat_cols() ~ "**Subjective Well Being**") |> 
+  modify_header(all_stat_cols() ~ "**{level}**  \nN = {n} ({style_percent(p)}%)")
+```
+
+```{r}
+descriptive <-
+  mics |> 
+  tbl_summary(include = c(SWB_CAT, FIN_CAT,WAGE, welevel, MSTATUS, WB18, WM14, ethnicity, zone, HH6, HHSEX, HHAGE_CAT, helevel, windex5,))
+```
+
+```{r}
+# Specify the files to delete
+files_to_delete <- c("descriptive.docx", "women.docx",
+                     "household.docx", "pca_components.docx")
+
+# Delete the specified files
+file.remove(files_to_delete)
+
+```
+
+
+```{r}
+descriptive |> 
+as_gt() |> 
+  gt::gtsave(filename = "descriptive.docx")
+```
+
+```{r}
+women |> 
+as_gt() |> 
+  gt::gtsave(filename = "women.docx")
+```
+
+```{r}
+household |> 
+as_gt() |> 
+  gt::gtsave(filename = "household.docx")
+```
+
+```{r}
+pca_components |> 
+as_gt() |> 
+  gt::gtsave(filename = "pca_components.docx")
 ```
 

@@ -45,6 +45,38 @@ missing_percentage(non_imputed)
 ```
 
 ```{r}
+analyze_missing_data <- function(data_not_missing, data_missing, VAR) {
+    # Summarizing counts for the specified variable
+    not_mis <- not_missing |> 
+        group_by({{VAR}}) |> 
+        summarize(count = n(), .groups = "drop")
+    
+    mis <- not_missing |> 
+        group_by({{VAR}}) |> 
+        summarize(count = n(), .groups = "drop")
+    
+    # Adding missing status labels
+    not_mis$missing_status <- "not_missing"
+    mis$missing_status <- "missing"
+    
+    # Combining datasets
+    combined_data <- rbind(not_mis, mis)
+    
+    # Creating contingency table
+    contingency_table <- xtabs(count ~ {{VAR}} + missing_status, data = combined_data)
+    
+    # Performing chi-square test
+    chi_square_result <- chisq.test(contingency_table)
+    
+    # Printing results
+    print(not_mis)
+    print(mis)
+    print(chi_square_result)
+}
+```
+
+
+```{r}
 not_mis <- not_missing |> 
   group_by(windex5) |> 
   summarize(count = n())
@@ -58,15 +90,14 @@ mis$missing_status <- "missing"
 
 combined_data <- rbind(not_mis, mis)
 
-```
-
-```{r}
-
-contingency_table <- xtabs(count ~ windex5 + missing_status, data = combined_data)
+contingency_table <- xtabs(count ~  + missing_status, data = combined_data)
 chi_square_result <- chisq.test(contingency_table)
 
 print(chi_square_result)
+
 ```
+
+
 
 
 ```{r}

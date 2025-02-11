@@ -1,0 +1,109 @@
+
+
+
+
+```{r}
+women <- read.csv("datasets/wm.csv") |> 
+  mutate(SN = row_number())
+imputed <- read.csv("datasets/mics.csv")|> 
+  mutate(SN = row_number())
+```
+
+```{r}
+not_missing <- women |> 
+  drop_na(FN1A:FN5,LS1:LS4) |> 
+  select(SN,WB4) |> 
+  left_join(imputed, by = "SN")
+  
+
+missing <- women |> 
+   filter(if_any(c(FN1A:FN5, LS1:LS4, windex5))) |>
+  select(SN,WB4) |> 
+  left_join(imputed, by = "SN")
+```
+
+```{r}
+skimr::skim(not_missing)
+```
+
+
+```{r}
+skimr::skim(missing)
+
+```
+
+
+
+```{r}
+missing_percentage <- function(data) {
+  total_missing <- sum(is.na(data))  # Count total missing values
+  total_values <- prod(dim(data))    # Total number of values in the dataset
+  percentage <- (total_missing / total_values) * 100  # Compute percentage
+  return(percentage)
+}
+missing_percentage(non_imputed)
+```
+
+```{r}
+not_mis <- not_missing |> 
+  group_by(windex5) |> 
+  summarize(count = n())
+
+mis <- missing |> 
+  group_by(windex5) |> 
+  summarize(count = n())
+
+not_mis$missing_status <- "not_missing"
+mis$missing_status <- "missing"
+
+combined_data <- rbind(not_mis, mis)
+
+```
+
+```{r}
+
+contingency_table <- xtabs(count ~ windex5 + missing_status, data = combined_data)
+chi_square_result <- chisq.test(contingency_table)
+
+print(chi_square_result)
+```
+
+
+```{r}
+skimr::skim(non_imputed)
+```
+
+```{r}
+skimr::skim(imputed)
+```
+
+```{r}
+# Function to perform t-test before and after imputation
+t_test_missing_vs_imputed <- function(original_data) {
+  # Impute missing values using mice (multiple imputation, taking first completed dataset)
+  imputed_data <- imputed
+  
+  # Initialize a list to store results
+  results <- list()
+  
+  # Perform t-test for each column
+  for (col in colnames(original_data)) {
+    if (is.numeric(original_data[[col]])) {
+      # Extract non-missing values from original data
+      original_values <- original_data[[col]]
+      imputed_values <- imputed_data[[col]]
+      
+      # Perform t-test
+      t_test_result <- t.test(original_values, imputed_values)
+      
+      # Store results
+      results[[col]] <- t_test_result
+    }
+  }
+  
+  return(results)
+}
+
+t_test_missing_vs_imputed(non_imputed)
+```
+

@@ -101,13 +101,13 @@ perform_mca <- function(data, n_comp = 1, comp_name = "Component") {
 ```
 
 
-## Financial Inclusion awareness
+## Financial Inclusion 
 
 ```{r}
 subset = mics |> 
   select(FN1A:FN5)
 
-subset <- subset %>%
+subset <- subset |>
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 FI = perform_mca(subset, 1,"FI")
@@ -115,17 +115,6 @@ FI = perform_mca(subset, 1,"FI")
 scree_plot_mca(subset)
 ```
 
-## Financial Inclusion usage
-
-
-subset = mics |> 
-  select(FN2:FN1L)
-
-subset <- subset %>%
-  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
-
-
-FI = perform_mca(subset, 1,"FI")
 
 ## Usage of Electronic and Print Information
 
@@ -133,7 +122,7 @@ FI = perform_mca(subset, 1,"FI")
 subset = mics |> 
   select(MT1, MT2, MT3, MT4, MT5, MT9, MT10, MT11, MT12)
 
-subset <- subset %>%
+subset <- subset |>
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 WEU = perform_mca(subset, 1,"WEU")
@@ -144,7 +133,7 @@ WEU = perform_mca(subset, 1,"WEU")
 subset = mics |> 
   select(VT20, VT21, VT22A, VT22B, VT22C, VT22D, VT22E, VT22F, VT22X)
 
-subset <- subset %>%
+subset <- subset |>
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 WFS = perform_mca(subset, 1,"WFS")
@@ -156,7 +145,7 @@ WFS = perform_mca(subset, 1,"WFS")
 subset = mics |> 
   select(DV1A, DV1B, DV1C, DV1D, DV1F)
 
-subset <- subset %>%
+subset <- subset |>
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 WFA = perform_mca(subset, 1,"WFA")
@@ -168,7 +157,7 @@ WFA = perform_mca(subset, 1,"WFA")
 subset = mics |> 
   select(HC7A, HC7B, HC9A, HC11, HC12, HC13)
 
-subset <- subset %>%
+subset <- subset |>
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 HOE = perform_mca(subset, 1,"HOE")
@@ -180,21 +169,12 @@ HOE = perform_mca(subset, 1,"HOE")
 subset = mics |> 
   select(ST2_1, ST2_2, ST2_3, ST2_4, ST2_1, ST2_2, ST2_3, ST2_4)
 
-subset <- subset %>%
+subset <- subset |>
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 UAFIP = perform_mca(subset, 1,"UAFIP")
 ```
 
-## Usage of Finacial Inclusion Programs
-
-subset = mics |> 
-  select()
-
-subset <- subset %>%
-  mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
-
-UFIP = perform_mca(subset, 1,"UFIP")
 
 
 ## Subjective Well Being
@@ -203,7 +183,7 @@ UFIP = perform_mca(subset, 1,"UFIP")
 subset = mics |> 
   select(LS1, LS2, LS3, LS4)
 
-subset <- subset %>%
+subset <- subset |>
   mutate(across(everything(), ~ factor(.x, ordered = TRUE)))
 
 SWB = perform_mca(subset, 1,"SWB")
@@ -218,6 +198,7 @@ mics <- bind_cols(mics, FI, WEU, WFS, WFA, HOE, UAFIP,SWB)
 
 
 ```{r}
+# Categorize financial inclusion and subjective well being into three categories low, average, and good. 
 mics <- mics |> 
     mutate(
         SWB_CAT = as.integer(factor(ntile(SWB, 100))),
@@ -229,13 +210,13 @@ mics <- mics |>
             SWB_CAT >= 40 & SWB_CAT <= 60 ~ 2,
             SWB_CAT > 60 ~ 3
         ),
-        SWB_CAT = factor(SWB_CAT, levels = c(1, 2, 3), ordered = TRUE), # Convert to ordered factor
+        SWB_CAT = factor(SWB_CAT, levels = c(1, 2, 3), ordered = TRUE),
         FIN_CAT = case_when(
             FIN_CAT < 40 ~ 1,
             FIN_CAT >= 40 & FIN_CAT <= 60 ~ 2,
             FIN_CAT > 60 ~ 3
         ),
-        FIN_CAT = factor(FIN_CAT, levels = c(1, 2, 3), ordered = TRUE) # Convert to ordered factor
+        FIN_CAT = factor(FIN_CAT, levels = c(1, 2, 3), ordered = TRUE) 
     )
 
 
@@ -266,7 +247,8 @@ women <- tbl_summary(
     mics,
     include = c(FIN_CAT, WAGE, welevel, MSTATUS, WB18, WM14, zone, HH6),
     by = SWB_CAT, # split table by group
-    missing = "no" # don't list missing data separately
+    missing = "no", # don't list missing data separately
+    percent = c("row")
   ) |> 
   add_n() |> # add column with total number of non-missing observations
   add_p(all_categorical() ~ "chisq.test") |> 
@@ -280,7 +262,8 @@ women <- tbl_summary(
 household <- tbl_summary(
     mics,
     include = c(ethnicity, zone, HH6, HHSEX, HHAGE_CAT, helevel, windex5),
-    by = SWB_CAT
+    by = SWB_CAT,
+    percent = c("row")
   ) |> 
   add_n() |> # add column with total number of non-missing observations
   bold_labels() |> 
@@ -294,7 +277,7 @@ household <- tbl_summary(
 pca_components <- tbl_summary(
     mics,
     include = c(WEU, WFA, WFS, HOE, UAFIP),
-    by=SWB_CAT
+    by=SWB_CAT,
   ) |> 
   add_n() |> # add column with total number of non-missing observations
   modify_header(label = "") |> # update the column header

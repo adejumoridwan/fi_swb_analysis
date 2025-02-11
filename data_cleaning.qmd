@@ -11,8 +11,10 @@ library(haven)
 
 
 ```{r}
+# load cleaning dictionary to clean dirty variables
 cleaning_dictionary <- read_csv("datasets/cleaning_dictionary.csv")
 
+# read household data
 hh <- read_sav("datasets/hh.sav") |> 
   arrange(HH1,HH2) |> 
   select(HH1, HH2, HC1A, 
@@ -20,12 +22,13 @@ hh <- read_sav("datasets/hh.sav") |>
          HC12,HC13,ST2_1:ST3_4,HH48,
          HHSEX, HHAGE,helevel)
 
+# read women data and join with household 
 wm <- read_sav("datasets/wm.sav") |>
   select(HH1,HH2,starts_with(c("FN","LS")),windex5,
          VT20:VT22X,MT1:MT5,MT9:MT12,zone, HH6, 
          WAGE, MSTATUS, WB18, welevel, ethnicity,
          WM14, DV1A, DV1B, DV1C, DV1D, DV1F, stratum,
-         wmweight,PSU,) |> 
+         wmweight,PSU,WB4) |> 
   left_join(hh, by = c("HH1","HH2")) |> 
   matchmaker::match_df(
     dictionary = cleaning_dictionary,
@@ -64,12 +67,28 @@ wm <- read_sav("datasets/wm.sav") |>
       HHAGE_CAT == "55-59" ~ 9,
       HHAGE_CAT == "60+" ~ 10,
       .default = NA
+    ),
+    welevel = case_when(
+      welevel == "0" ~ 0,
+      welevel == "1" ~ 1,
+      welevel == "2" ~ 2,
+      welevel == "3" ~ 2,
+      welevel == "4" ~ 3,
+      .default = NA
+    ),
+    helevel = case_when(
+      helevel == "0" ~ 0,
+      helevel == "1" ~ 1,
+      helevel == "2" ~ 2,
+      helevel == "3" ~ 2,
+      helevel == "4" ~ 3,
+      .default = NA
     )
-  )
+  ) 
 ```
 
 ```{r}
-#skimr::skim(wm)
+skimr::skim(wm)
 ```
 
 ```{r}

@@ -10,16 +10,23 @@ imputed <- read.csv("datasets/mics.csv")|>
 ```
 
 ```{r}
-not_missing <- women |> 
-  drop_na(FN1A:FN5,LS1:LS4) |> 
-  select(SN,WB4) |> 
-  left_join(imputed, by = "SN")
-  
+skimr::skim(women)
+```
 
-missing <- women |> 
-   filter(if_any(c(FN1A:FN5, LS1:LS4, windex5))) |>
-  select(SN,WB4) |> 
+```{r}
+
+# Not Missing: Rows where all specified columns are complete
+not_missing <- women |> 
+  drop_na(FN1A:FN5, LS1:LS4) |> 
+  select(SN, WB4) |> 
   left_join(imputed, by = "SN")
+
+# Missing: The opposite of `not_missing`
+missing <- women |> 
+  anti_join(not_missing, by = "SN") |>  # Keep rows not in `not_missing`
+  select(SN, WB4) |> 
+  left_join(imputed, by = "SN")
+
 ```
 
 ```{r}
@@ -45,15 +52,18 @@ missing_percentage(non_imputed)
 ```
 
 ```{r}
-analyze_missing_data <- function(data_not_missing, data_missing, VAR) {
+analyze_missing_data <- function(VAR) {
     # Summarizing counts for the specified variable
     not_mis <- not_missing |> 
-        group_by({{VAR}}) |> 
-        summarize(count = n(), .groups = "drop")
-    
-    mis <- not_missing |> 
-        group_by({{VAR}}) |> 
-        summarize(count = n(), .groups = "drop")
+  group_by(.data[[VAR]]) |> 
+  summarize(count = n(), .groups = "drop") |> 
+  mutate(percentage = count / sum(count) * 100)
+
+mis <- missing |> 
+  group_by(.data[[VAR]]) |> 
+  summarize(count = n(), .groups = "drop") |> 
+  mutate(percentage = count / sum(count) * 100)
+
     
     # Adding missing status labels
     not_mis$missing_status <- "not_missing"
@@ -62,8 +72,10 @@ analyze_missing_data <- function(data_not_missing, data_missing, VAR) {
     # Combining datasets
     combined_data <- rbind(not_mis, mis)
     
-    # Creating contingency table
-    contingency_table <- xtabs(count ~ {{VAR}} + missing_status, data = combined_data)
+    # Creating formula dynamically
+formula_str <- paste("count ~", VAR, "+ missing_status")
+contingency_table <- xtabs(as.formula(formula_str), data = combined_data)
+
     
     # Performing chi-square test
     chi_square_result <- chisq.test(contingency_table)
@@ -73,6 +85,15 @@ analyze_missing_data <- function(data_not_missing, data_missing, VAR) {
     print(mis)
     print(chi_square_result)
 }
+```
+
+```{r}
+analyze_missing_data("welevel")
+analyze_missing_data("windex5")
+analyze_missing_data("WM14")
+analyze_missing_data("MSTATUS")
+analyze_missing_data("WB18")
+t.test(not_missing$WB4,missing$WB4)
 ```
 
 
